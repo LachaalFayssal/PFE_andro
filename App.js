@@ -6,9 +6,12 @@ import { Searchbar, Button } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import WeatherCard from './screens/WeatherCard';
-import HourlyWeather from './screens/HourlyWeather'; // Import the new component
+import HourlyWeather from './screens/HourlyWeather';
+import WeeklyWeather from './screens/WeeklyWeather';
+import WindSpeedChart from './screens/WindSpeedChart';
+import PrecipitationChart from './screens/PrecipitationChart';
 
-// Contexte pour le thèmem
+// Contexte pour le thème
 const ThemeContext = createContext();
 
 const ThemeProvider = ({ children }) => {
@@ -58,7 +61,10 @@ const CustomHeader = ({ navigation }) => {
 
   return (
     <View style={[styles.header, { backgroundColor: theme.colors.background }]}>
-      <TouchableOpacity onPress={() => navigation.openDrawer()}>
+      <TouchableOpacity onPress={() => {
+        console.log('Opening drawer');
+        navigation.openDrawer();
+      }}>
         <Icon name="menu" size={24} color={theme.colors.text} />
       </TouchableOpacity>
       <View style={styles.logoContainer}>
@@ -94,7 +100,11 @@ const DashboardScreen = () => {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
+      horizontal={false}
+      scrollEnabled={true}
+    >
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <Searchbar
@@ -114,6 +124,18 @@ const DashboardScreen = () => {
       {/* Hourly Weather */}
       <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Prévisions Horaires</Text>
       <HourlyWeather city={searchQuery} />
+
+      {/* Weekly Weather */}
+      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Prévisions Hebdomadaires</Text>
+      <WeeklyWeather city={searchQuery} />
+
+      {/* Wind Speed Chart */}
+      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Graphique Vitesse du Vent</Text>
+      <WindSpeedChart city={searchQuery} />
+
+      {/* Precipitation Chart */}
+      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Graphique Précipitations</Text>
+      <PrecipitationChart city={searchQuery} />
     </ScrollView>
   );
 };
@@ -145,6 +167,7 @@ const App = () => {
           screenOptions={{
             header: ({ navigation }) => <CustomHeader navigation={navigation} />,
             drawerStyle: { backgroundColor: '#f0f0f0' },
+            gestureEnabled: true, // Ensure swipe gesture is enabled
           }}
         >
           <Drawer.Screen

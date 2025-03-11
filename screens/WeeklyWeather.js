@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import PropTypes from 'prop-types';
-import { useTheme } from '../App'; // Adjust the path based on your structure
+import { useTheme } from '../App';
 
 const WeeklyWeather = ({ city }) => {
   const { theme } = useTheme();
@@ -21,6 +21,7 @@ const WeeklyWeather = ({ city }) => {
           throw new Error('Unable to fetch weekly weather data.');
         }
         const data = await response.json();
+        console.log('WeeklyWeather API Response:', data);
         const formattedData = data.list.map((item) => ({
           day: new Date(item.dt * 1000).toLocaleDateString('fr-FR', { weekday: 'long' }),
           temp: Math.round(item.temp.day),
@@ -83,7 +84,6 @@ const WeeklyWeather = ({ city }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.title, { color: theme.colors.primary }]}>Prévisions Hebdomadaires</Text>
       <FlatList
         data={forecastData}
         renderItem={renderDayCard}
@@ -91,6 +91,7 @@ const WeeklyWeather = ({ city }) => {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.listContainer}
+        nestedScrollEnabled={true} // Allow drawer swipe to take precedence
       />
     </View>
   );
@@ -117,6 +118,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingHorizontal: 5,
+    marginBottom: 20,
   },
   dayCard: {
     width: 120,
