@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import WeatherCard from './screens/WeatherCard';
 import HourlyWeather from './screens/HourlyWeather'; // Import the new component
 
-// Contexte pour le thème
+// Contexte pour le thèmem
 const ThemeContext = createContext();
 
 const ThemeProvider = ({ children }) => {
