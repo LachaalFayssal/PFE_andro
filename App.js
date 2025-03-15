@@ -1,7 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
-import { createDrawerNavigator } from '@react-navigation/drawer';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Animated } from 'react-native';
 import { Searchbar, Button } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -10,7 +8,7 @@ import HourlyWeather from './screens/HourlyWeather';
 import WeeklyWeather from './screens/WeeklyWeather';
 import WindSpeedChart from './screens/WindSpeedChart';
 import PrecipitationChart from './screens/PrecipitationChart';
-
+import WeatherMap from './screens/WeatherMapScreen'; // Assurez-vous que le chemin est correct
 // Contexte pour le thème
 const ThemeContext = createContext();
 
@@ -39,6 +37,10 @@ const ThemeProvider = ({ children }) => {
       background: isDarkTheme ? '#121212' : '#ffffff',
       text: isDarkTheme ? '#ffffff' : '#000000',
       primary: isDarkTheme ? '#bb86fc' : '#6200ee',
+      drawerBackground: isDarkTheme ? '#1a1a1a' : '#ffffff',
+      drawerActiveBackground: '#e3f2fd',
+      headerBackground: isDarkTheme ? '#1a1a1a' : '#f0f0f0',
+      inactiveIconColor: isDarkTheme ? '#888' : '#757575',
     },
   };
 
@@ -49,33 +51,94 @@ const ThemeProvider = ({ children }) => {
   );
 };
 
-// Hook personnalisé pour utiliser le thème
 const useTheme = () => useContext(ThemeContext);
-
-// Custom hook to provide theme to components
 export { useTheme };
 
-// Composant de la barre de navigation personnalisée
-const CustomHeader = ({ navigation }) => {
+// Web Sidebar Content
+const WebSidebar = ({ isOpen, toggleSidebar, setCurrentScreen, currentScreen }) => {
+  const { theme } = useTheme();
+  const slideAnim = useState(new Animated.Value(isOpen ? 0 : -240))[0];
+
+  useEffect(() => {
+    Animated.timing(slideAnim, {
+      toValue: isOpen ? 0 : -240,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [isOpen]);
+
+  if (!isOpen && slideAnim.__getValue() === -240) return null;
+
+  const handleNavigation = (screen) => {
+    setCurrentScreen(screen);
+    toggleSidebar();
+  };
+
+  return (
+    <Animated.View
+      style={[
+        styles.webSidebar,
+        { backgroundColor: theme.colors.drawerBackground, transform: [{ translateX: slideAnim }] },
+      ]}
+    >
+      <TouchableOpacity onPress={toggleSidebar} style={styles.closeButton}>
+        <Icon name="close" size={24} color={theme.colors.text} accessibilityLabel="Fermer la barre latérale" />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[
+          styles.drawerItem,
+          currentScreen === 'Dashboard' && { backgroundColor: theme.colors.drawerActiveBackground },
+        ]}
+        onPress={() => handleNavigation('Dashboard')}
+      >
+        <Icon name="dashboard" size={20} color={currentScreen === 'Dashboard' ? theme.colors.primary : theme.colors.inactiveIconColor} />
+        <Text style={[styles.drawerItemText, { color: currentScreen === 'Dashboard' ? theme.colors.primary : theme.colors.inactiveIconColor }]}>Dashboard</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[
+          styles.drawerItem,
+          currentScreen === 'Climate History' && { backgroundColor: theme.colors.drawerActiveBackground },
+        ]}
+        onPress={() => handleNavigation('Climate History')}
+      >
+        <Icon name="history" size={20} color={currentScreen === 'Climate History' ? theme.colors.primary : theme.colors.inactiveIconColor} />
+        <Text style={[styles.drawerItemText, { color: currentScreen === 'Climate History' ? theme.colors.primary : theme.colors.inactiveIconColor }]}>Climate History</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[
+          styles.drawerItem,
+          currentScreen === 'Weather Map' && { backgroundColor: theme.colors.drawerActiveBackground },
+        ]}
+        onPress={() => handleNavigation('Weather Map')}
+      >
+        <Icon name="map" size={20} color={currentScreen === 'Weather Map' ? theme.colors.primary : theme.colors.inactiveIconColor} />
+        <Text style={[styles.drawerItemText, { color: currentScreen === 'Weather Map' ? theme.colors.primary : theme.colors.inactiveIconColor }]}>Weather Map</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
+// Custom Header Component
+const CustomHeader = ({ toggleSidebar }) => {
   const { theme, toggleTheme } = useTheme();
 
   return (
-    <View style={[styles.header, { backgroundColor: theme.colors.background }]}>
-      <TouchableOpacity onPress={() => {
-        console.log('Opening drawer');
-        navigation.openDrawer();
-      }}>
+    <View style={[styles.header, { backgroundColor: theme.colors.headerBackground }]}>
+      <TouchableOpacity
+        onPress={() => {
+          console.log('Menu button pressed');
+          toggleSidebar();
+        }}
+        style={styles.menuButton}
+        accessibilityLabel="Ouvrir la barre latérale"
+      >
         <Icon name="menu" size={24} color={theme.colors.text} />
       </TouchableOpacity>
       <View style={styles.logoContainer}>
-        <Image
-          source={require('./assets/logo.png')} // Update path to your logo
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <Icon name="wb-sunny" size={24} color="#ff9800" style={styles.sunIcon} />
         <Text style={[styles.title, { color: theme.colors.primary }]}>Météo</Text>
       </View>
-      <TouchableOpacity onPress={toggleTheme}>
+      <TouchableOpacity onPress={toggleTheme} accessibilityLabel="Basculer le thème">
         <Icon
           name={theme.isDarkTheme ? 'brightness-7' : 'brightness-3'}
           size={24}
@@ -86,26 +149,17 @@ const CustomHeader = ({ navigation }) => {
   );
 };
 
-// Configuration du Drawer Navigator
-const Drawer = createDrawerNavigator();
-
-// Composants des écrans
+// Écrans
 const DashboardScreen = () => {
   const { theme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('Casablanca');
 
   const handleSearch = () => {
     console.log('Searching for:', searchQuery);
-    // The WeatherCard and HourlyWeather will fetch data for the new city
   };
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.colors.background }}
-      horizontal={false}
-      scrollEnabled={true}
-    >
-      {/* Search Bar */}
+    <ScrollView contentContainerStyle={{ padding: 20 }}>
       <View style={styles.searchContainer}>
         <Searchbar
           placeholder="Rechercher une ville"
@@ -117,23 +171,13 @@ const DashboardScreen = () => {
           RECHERCHER
         </Button>
       </View>
-
-      {/* Weather Card */}
       <WeatherCard city={searchQuery} theme={theme} />
-
-      {/* Hourly Weather */}
       <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Prévisions Horaires</Text>
       <HourlyWeather city={searchQuery} />
-
-      {/* Weekly Weather */}
       <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Prévisions Hebdomadaires</Text>
       <WeeklyWeather city={searchQuery} />
-
-      {/* Wind Speed Chart */}
       <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Graphique Vitesse du Vent</Text>
       <WindSpeedChart city={searchQuery} />
-
-      {/* Precipitation Chart */}
       <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Graphique Précipitations</Text>
       <PrecipitationChart city={searchQuery} />
     </ScrollView>
@@ -143,7 +187,7 @@ const DashboardScreen = () => {
 const ClimateHistoryScreen = () => {
   const { theme } = useTheme();
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <ScrollView contentContainerStyle={{ padding: 20 }}>
       <Text style={{ color: theme.colors.text, fontSize: 20, padding: 10 }}>Historique Climatique</Text>
     </ScrollView>
   );
@@ -152,55 +196,61 @@ const ClimateHistoryScreen = () => {
 const WeatherMapScreen = () => {
   const { theme } = useTheme();
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <View style={{ flex: 1, padding: 20 }}>
       <Text style={{ color: theme.colors.text, fontSize: 20, padding: 10 }}>Carte Météo</Text>
-    </ScrollView>
+      <WeatherMap />
+    </View>
   );
 };
 
-// Composant principal de l'application
+// Application principale
 const App = () => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [currentScreen, setCurrentScreen] = useState('Dashboard');
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
+  const renderScreen = () => {
+    switch (currentScreen) {
+      case 'Dashboard':
+        return <DashboardScreen />;
+      case 'Climate History':
+        return <ClimateHistoryScreen />;
+      case 'Weather Map':
+        return <WeatherMapScreen />;
+      default:
+        return <DashboardScreen />;
+    }
+  };
+
   return (
     <ThemeProvider>
-      <NavigationContainer>
-        <Drawer.Navigator
-          screenOptions={{
-            header: ({ navigation }) => <CustomHeader navigation={navigation} />,
-            drawerStyle: { backgroundColor: '#f0f0f0' },
-            gestureEnabled: true, // Ensure swipe gesture is enabled
-          }}
-        >
-          <Drawer.Screen
-            name="Dashboard"
-            component={DashboardScreen}
-            options={{
-              drawerIcon: ({ color, size }) => <Icon name="dashboard" color={color} size={size} />,
-              title: 'Tableau de bord',
-            }}
-          />
-          <Drawer.Screen
-            name="Climate History"
-            component={ClimateHistoryScreen}
-            options={{
-              drawerIcon: ({ color, size }) => <Icon name="history" color={color} size={size} />,
-              title: 'Historique climatique',
-            }}
-          />
-          <Drawer.Screen
-            name="Weather Map"
-            component={WeatherMapScreen}
-            options={{
-              drawerIcon: ({ color, size }) => <Icon name="map" color={color} size={size} />,
-              title: 'Carte météo',
-            }}
-          />
-        </Drawer.Navigator>
-      </NavigationContainer>
+      <View style={styles.appContainer}>
+        {/* Header fixé */}
+        <CustomHeader toggleSidebar={toggleSidebar} />
+        {/* Sidebar fixée */}
+        <WebSidebar
+          isOpen={isSidebarOpen}
+          toggleSidebar={toggleSidebar}
+          setCurrentScreen={setCurrentScreen}
+          currentScreen={currentScreen}
+        />
+        {/* Contenu principal dans un ScrollView */}
+        <ScrollView style={styles.mainContent}>
+          {renderScreen()}
+        </ScrollView>
+      </View>
     </ThemeProvider>
   );
 };
 
 const styles = StyleSheet.create({
+  appContainer: {
+    flex: 1,
+    backgroundColor: '#ffffff', // Fond de l'application
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -211,19 +261,76 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
+    height: 60, // Hauteur fixe du header
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    position: 'fixed', // Header fixé
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1001, // Au-dessus de tout
+  },
+  menuButton: {
+    padding: 5,
   },
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  logo: {
-    width: 60,
-    height: 70,
-  },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
+  },
+  sunIcon: {
+    marginRight: 5,
+  },
+  webSidebar: {
+    width: 240,
+    height: '100%', // Toute la hauteur
+    position: 'fixed', // Sidebar fixée
+    left: 0,
+    top: 10, // Commence en haut
+    zIndex: 1000, // Sous le header, au-dessus du contenu
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
+    borderRightWidth: 1,
+    borderRightColor: '#ddd',
+  },
+  closeButton: {
+    alignSelf: 'flex-end',
+    padding: 10,
+  },
+  drawerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  drawerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  drawerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    marginHorizontal: 10,
+    marginVertical: 5,
+    borderRadius: 5,
+  },
+  drawerItemText: {
+    fontSize: 16,
     marginLeft: 10,
+  },
+  mainContent: {
+    flex: 1,
+    marginTop: 60, // Marge pour la hauteur du header
+    backgroundColor: '#ffffff', // Fond du contenu
   },
   searchContainer: {
     flexDirection: 'row',
